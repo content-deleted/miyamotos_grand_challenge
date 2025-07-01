@@ -1,0 +1,8 @@
+*data/Test_*
+!data/Test_Junk.json
+!data/Test_Negotiate.json
+data/GameHam_Client.json
+save/persistent.rpgsave
+save/scores.rpgsave
+save/*.rpgsave
+*DS_Store
