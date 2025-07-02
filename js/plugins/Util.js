@@ -59,6 +59,14 @@ var Util = Util || {};
         event.gravity = g; 
     }
 
+    Game_Interpreter.prototype.WaterPlayer = function() {
+        const event = SceneManager._scene._playerEvent;
+        event.gravity *= 0.66; 
+        event.hasUsedDoubleJump = false;
+        event.hasUsedJump = false;
+        event.framesSinceGrounded = 0;
+    }
+
     Game_Interpreter.prototype.SetRespawnPoint = function() {
         SceneManager._scene._startingPlayerX = $gamePlayer._x; SceneManager._scene._startingPlayerY = $gamePlayer._y;
     }
