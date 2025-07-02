@@ -114,9 +114,15 @@ var Util = Util || {};
         $gameSelfSwitches.setValue([$gameMap._mapId, this._eventId, 'C'], false);
         $gameSelfSwitches.setValue([$gameMap._mapId, this._eventId, 'D'], false);
         $gamePlayer._invincible = false;
-        stopDash(SceneManager._scene._playerEvent);
-        stopGrapple(SceneManager._scene._playerEvent);
-        SceneManager._scene._playerEvent.hasUsedDoubleJump = false;
+
+        const event = SceneManager._scene._playerEvent;
+        if(!event) return; // should never happen 
+        stopDash(event);
+        stopGrapple(event);
+        event.hasUsedDoubleJump = false;
+        if(event.blockPlacement) {
+            $gameMap.writeTile(event.blockPlacement.x, event.blockPlacement.y, 3, event.blockPlacement.prev);
+        }
     }
 
     const doubleJumpEnabled = function() {
@@ -127,6 +133,9 @@ var Util = Util || {};
     }
     const grappleEnabled = function() {
         return $gameSwitches.value(3);
+    }
+    const blockEnabled = function() {
+        return true || $gameSwitches.value(4);
     }
     const stopDash = function(playerEvent) {
         playerEvent.pSprite.rotation = 0;
@@ -151,6 +160,11 @@ var Util = Util || {};
 
         const event = $gameMap._events[this._eventId];
         const yoff = -0.5;
+
+        if(Input.isTriggered("#r")) {
+            this.KillPlayer();
+            return;
+        }
 
         // check for dashing
         if(dashEnabled() && canMove(event)) {
@@ -223,13 +237,34 @@ var Util = Util || {};
                         const anim = Util.StartPlatformerAnim(event.pSprite, 134, event.grappleDir == 6, true);
                         anim._startingX = event.grappleHand._startingX;
                         // destroy animation
-                        if(playerEvent.grappleHand) event.grappleHand.parent.removeChild(event.grappleHand);
+                        if(event.grappleHand) event.grappleHand.parent.removeChild(event.grappleHand);
 
                         event.grappleHand = anim;
 
                         event.grappleTimer = 0;
                     }
                 }
+            }
+        }
+
+        if(blockEnabled()) {
+            if(canMove(event) && Input.isTriggered("#b")) {
+                const anim = Util.StartPlatformerAnim(event.pSprite, 136, false, true);
+                event.grappleHand = anim;
+                anim._startingX = 24;
+                anim._startingY = -60;
+                // erase previous
+                if(event.blockPlacement) {
+                    $gameMap.writeTile(event.blockPlacement.x, event.blockPlacement.y, 3, event.blockPlacement.prev);
+                }
+
+                const targX = Math.floor($gamePlayer._x);
+                const targY = Math.floor($gamePlayer._y) - 1;
+                const prev = $gameMap.tileId(targX,targY,3);
+                event.blockPlacement = {x: targX, y: targY, prev: prev};
+
+                $gameMap.writeTile(targX, targY, 3, 56);
+                $gameMap.refreshTilemap();
             }
         }
 
