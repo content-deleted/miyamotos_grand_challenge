@@ -69,6 +69,8 @@ var Util = Util || {};
 
     Game_Interpreter.prototype.SetRespawnPoint = function() {
         SceneManager._scene._startingPlayerX = $gamePlayer._x; SceneManager._scene._startingPlayerY = $gamePlayer._y;
+        SceneManager._scene._startingDisplayX = $gameMap._displayX;
+        SceneManager._scene._startingDisplayY = $gameMap._displayY;
     }
 
     Game_Interpreter.prototype.KillPlayer = function() {
