@@ -166,7 +166,7 @@ var Util = Util || {};
     }
     Game_Interpreter.prototype.RunSideScrollerTick = function() {
         // dont run if a message is playing
-        if(SceneManager._scene._messageWindow && (SceneManager._scene._messageWindow.isOpen() || SceneManager._scene._messageWindow.isAnySubWindowActive())) return;
+        if(SceneManager._scene._pauseForMessage && SceneManager._scene._messageWindow && (SceneManager._scene._messageWindow.isOpen() || SceneManager._scene._messageWindow.isAnySubWindowActive())) return;
 
         const event = $gameMap._events[this._eventId];
         const yoff = -0.5;
@@ -328,7 +328,8 @@ var Util = Util || {};
                 isMoved = true;
                 if(SceneManager._scene.leftMap && $gamePlayer._realX <= 0.1) {
                     // $gameSelfSwitches.setValue([$gameMap._mapId, event._eventId, 'C'], true);
-                    $gamePlayer.reserveTransfer(SceneManager._scene.leftMap, "end", Math.ceil($gamePlayer._realY)- 1, 0, 0);
+                    const eventY = event.grounded ? $gamePlayer._realY : $gamePlayer._realY;
+                    $gamePlayer.reserveTransfer(SceneManager._scene.leftMap, "end", eventY, $gamePlayer._direction, 0);
                     this.PrepareSideScrollTransfer();
                 }
             } else if(Input.isPressed("right") && ($gameMap.isPassable(Math.ceil($gamePlayer._x-0.5), Math.floor($gamePlayer._y), 6) || $gamePlayer._realX > $gameMap.width() - 1.5)) {
@@ -338,7 +339,8 @@ var Util = Util || {};
                 isMoved = true;
                 if(SceneManager._scene.rightMap && $gamePlayer._realX >= $gameMap.width() - 1.1) {
                     // $gameSelfSwitches.setValue([$gameMap._mapId, event._eventId, 'D'], true);
-                    $gamePlayer.reserveTransfer(SceneManager._scene.rightMap, 0, Math.ceil($gamePlayer._realY)- 1, 0, 0);
+                    const eventY = event.grounded ? $gamePlayer._realY  : $gamePlayer._realY;
+                    $gamePlayer.reserveTransfer(SceneManager._scene.rightMap, 0, eventY, $gamePlayer._direction, 0);
                     this.PrepareSideScrollTransfer();
                 }
             }
@@ -419,10 +421,10 @@ var Util = Util || {};
         // }
 
         if(SceneManager._scene.bottomMap && $gamePlayer._realY >= $gameMap.height() - 0.5) {
-            $gamePlayer.reserveTransfer(SceneManager._scene.bottomMap, $gamePlayer._x, 0, 0, 0);
+            $gamePlayer.reserveTransfer(SceneManager._scene.bottomMap, $gamePlayer._x, 0, $gamePlayer._direction, 0);
             this.PrepareSideScrollTransfer();
         } else if(SceneManager._scene.topMap && $gamePlayer._realY <= -0.1) {
-            $gamePlayer.reserveTransfer(SceneManager._scene.topMap, $gamePlayer._x, "end", 0, 0);
+            $gamePlayer.reserveTransfer(SceneManager._scene.topMap, $gamePlayer._x, "end", $gamePlayer._direction, 0);
             this.PrepareSideScrollTransfer();
         }
     }

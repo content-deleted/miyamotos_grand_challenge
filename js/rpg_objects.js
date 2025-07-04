@@ -7483,6 +7483,8 @@ Game_Player.prototype.performTransfer = function() {
         if(this._newX == "end") this._newX = $gameMap.width();
         if(this._newY == "end") this._newY = $gameMap.height() - 2;
         this.locate(this._newX, this._newY);
+        $gamePlayer._x = $gamePlayer._realX =this._newX;
+        $gamePlayer._y = $gamePlayer._realY =this._newY;
         this.refresh();
         this.clearTransferInfo();
     }
