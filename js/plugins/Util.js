@@ -5,6 +5,10 @@ var Util = Util || {};
 
 (function (_) { 
     "use strict";
+    Array.prototype.pick = function () {
+        return this[Math.floor((Math.random()*this.length))];
+    }
+
     Util.EventCanSeePlayer = function(interpreter) {
         const event = $gameMap._events[interpreter._eventId];
         const d = event._direction;
@@ -57,6 +61,40 @@ var Util = Util || {};
                     x.start();
                 }
             });
+    }
+
+    Util.SetTextSound = function(name) {
+        const data = Util.TextSounds[name.toLowerCase()];
+        $gameSystem._msgSoundName     = data.name;
+        $gameSystem._msgSoundVol      = data.vol;
+        $gameSystem._msgSoundPitch    = data.pitch;
+        $gameSystem._msgSoundPitchVar = data.pitchVar;
+        $gameSystem._msgSoundInterval = data.interval;
+    }
+  
+    Util.TextSounds = {
+        miyamoto: {
+          name    : ['text_mi', 'text_ya', 'text_mo', 'text_to'],
+          vol     : 200,
+          pitch   : 100,
+          pitchVar: 10,
+          interval: 3,
+        }
+    }
+
+    Game_Interpreter.prototype.SetMiyamotoTalk = function() {
+        Util.SetTextSound("miyamoto");
+        $gameSystem.setWindowskin("Window");
+    }
+
+    Game_Interpreter.prototype.SetSystemTalk = function() {
+        Util.SetTextSound("miyamoto");
+        $gameSystem.setWindowskin("Window");
+    }
+
+    Game_Interpreter.prototype.SetNPCTalk = function() {
+        Util.SetTextSound("miyamoto");
+        $gameSystem.setWindowskin("Window");
     }
 
     Game_Interpreter.prototype.FlyPlayer = function(g = -0.35) {
