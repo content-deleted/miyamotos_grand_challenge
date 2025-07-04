@@ -50,7 +50,12 @@ var Util = Util || {};
         $gameMap.events().filter(e => e._trigger == 1 && !e._locked &&
             e._x < pX + 0.5 && e._x > pX - 0.5 &&
             e._y < pY + 0.5 && e._y > pY - 0.5).forEach(x => {
-                x.start();
+                // weird spike handling
+                if($gameMessage.isBusy() && x._characterIndex == 4 && x._characterName == "!Other1") {
+                    $gameMap._interpreter.KillPlayer();
+                } else {
+                    x.start();
+                }
             });
     }
 
@@ -65,6 +70,14 @@ var Util = Util || {};
         event.hasUsedDoubleJump = false;
         event.hasUsedJump = false;
         event.framesSinceGrounded = 0;
+    }
+
+    Game_Interpreter.prototype.FuckupJump = function() {
+        const event = SceneManager._scene._playerEvent;
+        event.gravity = 0; 
+        event.hasUsedDoubleJump = true;
+        event.hasUsedJump = true;
+        event.framesSinceGrounded = 10;
     }
 
     Game_Interpreter.prototype.SetRespawnPoint = function() {
@@ -104,16 +117,18 @@ var Util = Util || {};
         event.pSprite.anchor.x = event.pSprite.anchor.y = 1
 
         const p1 = SceneManager._scene.parallax1;
-        const p2 = SceneManager._scene.parallax1;
+        const p2 = SceneManager._scene.parallax2;
         const parallaxPicture1 = p1 ? ImageManager.loadPicture(p1) : null;
         const parallaxPicture2 = p2 ? ImageManager.loadPicture(p2) : null;
         
         event.parallax1 = new TilingSprite(parallaxPicture1);
-        event.parallax1.move(0, 0, Graphics.width, 414);
+        const p1Height = SceneManager._scene.parallax1Height || 414;
+        event.parallax1.move(0, 0, Graphics.width, p1Height);
         SceneManager._scene._spriteset._parallax.addChild(event.parallax1);
 
         event.parallax2 = new TilingSprite(parallaxPicture2);
-        event.parallax2.move(0, 0, Graphics.width, 261);
+        const p2Height = SceneManager._scene.parallax2Height || 261;
+        event.parallax2.move(0, 0, Graphics.width, p2Height);
         SceneManager._scene._spriteset._parallax.addChild(event.parallax2);
     }
 
@@ -208,15 +223,19 @@ var Util = Util || {};
 
             if(event.grappling) {
                 event.grappleTimer++;
-                const gSpeed = 8;
+                const gSpeed = 12;
                 if(event.grapplePoint) {
                     if(event.grappleDir == 6 ? $gamePlayer._x >= event.grapplePoint.x - 0.5 : $gamePlayer._x <= event.grapplePoint.x + 1.5) {
                         stopGrapple(event);
                         return;
                     }
-                    if(event.grappleTimer > 1 && event.grappleArms.length) {
+                    if(Input.isTriggered("ok")) {
+                        event.gravity = -0.02;
+                        stopGrapple(event);
+                    }
+                    if(event.grappleTimer > 0 && event.grappleArms.length) {
                         const anim = event.grappleArms.shift();
-                        anim.parent.removeChild(anim);
+                        if(anim.parent) anim.parent.removeChild(anim);
                         event.grappleTimer = 0;
                     }
 
@@ -225,7 +244,7 @@ var Util = Util || {};
                 } else {
                     event.grappleHand._startingX += gSpeed * (event.grappleDir == 6 ? 1 : -1);
 
-                    if(event.grappleTimer > 1) {
+                    if(event.grappleTimer > 0) {
                         const anim = Util.StartPlatformerAnim(event.pSprite, 133, event.grappleDir == 6, true);
                         anim._startingX = event.grappleHand._startingX - 40 * (event.grappleDir == 6 ? 1 : -1);
                         event.grappleArms.push(anim);
@@ -332,7 +351,7 @@ var Util = Util || {};
                     $gamePlayer.reserveTransfer(SceneManager._scene.leftMap, "end", eventY, $gamePlayer._direction, 0);
                     this.PrepareSideScrollTransfer();
                 }
-            } else if(Input.isPressed("right") && ($gameMap.isPassable(Math.ceil($gamePlayer._x-0.5), Math.floor($gamePlayer._y), 6) || $gamePlayer._realX > $gameMap.width() - 1.5)) {
+            } else if(Input.isPressed("right") && ($gameMap.isPassable(Math.ceil($gamePlayer._x-0.5), Math.floor($gamePlayer._y), 6) || $gamePlayer._realX > $gameMap.width() - 0.5)) {
                 $gamePlayer._realX += 0.1;
                 $gamePlayer._x = $gamePlayer._realX;
                 $gamePlayer._direction = 6;

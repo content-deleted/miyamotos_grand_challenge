@@ -5,5 +5,6 @@ var $plugins =
 {"name":"CD_MapEdit","status":true,"description":"","parameters":{}},
 {"name":"Community_Basic","status":true,"description":"Basic plugin for manipulating important parameters.","parameters":{"cacheLimit":"20","screenWidth":"816","screenHeight":"624","changeWindowWidthTo":"","changeWindowHeightTo":"","renderingMode":"auto","alwaysDash":"off"}},
 {"name":"Yami_SkipTitle","status":true,"description":"Skip the title scene for testing purpose.","parameters":{}},
-{"name":"Util","status":true,"description":"","parameters":{}}
+{"name":"Util","status":true,"description":"","parameters":{}},
+{"name":"HIME_WindowskinChange","status":true,"description":"v1.0 - Change windowskins during the game using script calls!","parameters":{}}
 ];
