@@ -800,7 +800,7 @@ var PIXI;
             return TileRenderer;
         }(PIXI.ObjectRenderer));
         TileRenderer.vbAutoincrement = 0;
-        TileRenderer.SCALE_MODE = PIXI.SCALE_MODES.LINEAR;
+        TileRenderer.SCALE_MODE = PIXI.SCALE_MODES.NEAREST;//PIXI.SCALE_MODES.LINEAR;
         TileRenderer.DO_CLEAR = false;
         tilemap.TileRenderer = TileRenderer;
         PIXI.WebGLRenderer.registerPlugin('tilemap', TileRenderer);

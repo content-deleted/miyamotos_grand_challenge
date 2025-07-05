@@ -79,6 +79,20 @@ var Util = Util || {};
           pitch   : 100,
           pitchVar: 10,
           interval: 3,
+        },
+        npc: {
+            name    : 'text_blah',
+            vol     : 65,
+            pitch   : 120,
+            pitchVar: 20,
+            interval: 4,
+        },
+        system: {
+            name    : 'text_beep',
+            vol     : 100,
+            pitch   : 150,
+            pitchVar: 20,
+            interval: 2,
         }
     }
 
@@ -88,13 +102,13 @@ var Util = Util || {};
     }
 
     Game_Interpreter.prototype.SetSystemTalk = function() {
-        Util.SetTextSound("miyamoto");
-        $gameSystem.setWindowskin("Window");
+        Util.SetTextSound("system");
+        $gameSystem.setWindowskin("Window_Backup");
     }
 
     Game_Interpreter.prototype.SetNPCTalk = function() {
-        Util.SetTextSound("miyamoto");
-        $gameSystem.setWindowskin("Window");
+        Util.SetTextSound("npc");
+        $gameSystem.setWindowskin("Window_NPC");
     }
 
     Game_Interpreter.prototype.FlyPlayer = function(g = -0.35) {
@@ -129,6 +143,8 @@ var Util = Util || {};
         stopGrapple(SceneManager._scene._playerEvent);
         SceneManager._scene._playerEvent.gravity = 0;
         $gameScreen.startFlash([255, 0, 0, 128], 8);
+        AudioManager.playSe({ name: "Blow2", volume: 80, pitch: 50, pan: 0 });
+
         $gamePlayer._realX = $gamePlayer._x = SceneManager._scene._startingPlayerX;
         $gamePlayer._realY = $gamePlayer._y = SceneManager._scene._startingPlayerY;
 
@@ -265,11 +281,14 @@ var Util = Util || {};
                 if(event.grapplePoint) {
                     if(event.grappleDir == 6 ? $gamePlayer._x >= event.grapplePoint.x - 0.5 : $gamePlayer._x <= event.grapplePoint.x + 1.5) {
                         stopGrapple(event);
+                        event.hasUsedDoubleJump = false;
                         return;
                     }
                     if(Input.isTriggered("ok")) {
                         event.gravity = -0.02;
+                        event.hasUsedDoubleJump = false;
                         stopGrapple(event);
+                        return;
                     }
                     if(event.grappleTimer > 0 && event.grappleArms.length) {
                         const anim = event.grappleArms.shift();
@@ -356,6 +375,15 @@ var Util = Util || {};
             }
         }
 
+        let bonked = false;
+        if((!$gameMap.isPassable(-Math.round(-$gamePlayer._x+0.5 - 0.1), Math.ceil($gamePlayer._y - 0.5), 8) ||
+            !$gameMap.isPassable(-Math.round(-$gamePlayer._x+0.5 + 0.1), Math.ceil($gamePlayer._y - 0.5), 8)) || 
+            (!$gameMap.isPassable(-Math.round(-$gamePlayer._x+0.5 - 0.1), Math.floor($gamePlayer._y - 0.25), 8) ||
+            !$gameMap.isPassable(-Math.round(-$gamePlayer._x+0.5 + 0.1), Math.floor($gamePlayer._y - 0.25), 8))) {
+                //bonk
+                event.gravity = 0.05;
+                bonked = true;
+        }
         // update y for falling or jumping
         if(!event.grappling) {
             if(event.gravity < 0 || !event.grounded) { 
@@ -405,10 +433,12 @@ var Util = Util || {};
         // handle jump and land
         let prevGround = event.grounded;
         if(event.gravity >= 0) {
-            event.grounded = !$gamePlayer.isMapPassable(-Math.round(-$gamePlayer._x+0.5 - 0.1), Math.floor($gamePlayer._y + yoff), 2) ||
-                !$gamePlayer.isMapPassable(-Math.round(-$gamePlayer._x+0.5 + 0.1), Math.floor($gamePlayer._y + yoff), 2);
+            event.grounded = (!$gamePlayer.isMapPassable(-Math.round(-$gamePlayer._x+0.5 - 0.1), Math.floor($gamePlayer._y + yoff), 2) ||
+                !$gamePlayer.isMapPassable(-Math.round(-$gamePlayer._x+0.5 + 0.1), Math.floor($gamePlayer._y + yoff), 2)) && 
+                (!$gameMap.isPassable(-Math.round(-$gamePlayer._x+0.5 + 0.1), Math.floor($gamePlayer._y + (prevGround ? yoff : 1))) || 
+                !$gameMap.isPassable(-Math.round(-$gamePlayer._x+0.5 - 0.1), Math.floor($gamePlayer._y + (prevGround ? yoff : 1))));
             if(event.grounded) {
-                if(!prevGround) {
+                if(event.framesSinceGrounded > 1) {
                     // add landing dust here
                     if($gamePlayer._direction == 6) {
                         Util.StartPlatformerAnim(event.pSprite, 200);
@@ -433,14 +463,6 @@ var Util = Util || {};
                     $gamePlayer.setStepAnime(false);
                 }
                 event.framesSinceGrounded = 0;
-            }
-        } else {
-            if((!$gamePlayer.isMapPassable(-Math.round(-$gamePlayer._x+0.5 - 0.1), Math.floor($gamePlayer._y + 0.9), 8) ||
-            !$gamePlayer.isMapPassable(-Math.round(-$gamePlayer._x+0.5 + 0.1), Math.floor($gamePlayer._y + 0.9), 8)) && 
-            (!$gamePlayer.isMapPassable(-Math.round(-$gamePlayer._x+0.5 - 0.1), Math.floor($gamePlayer._y +0.5), 8) ||
-            !$gamePlayer.isMapPassable(-Math.round(-$gamePlayer._x+0.5 + 0.1), Math.floor($gamePlayer._y+ 0.5), 8))) {
-                //bonk
-                event.gravity = 0.1;
             }
         }
         if(!event.grounded){
