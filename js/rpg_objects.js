@@ -5950,7 +5950,9 @@ Game_Map.prototype.autotileType = function(x, y, z) {
 };
 
 Game_Map.prototype.isPassable = function(x, y, d) {
-    return this.checkPassage(x, y, (1 << (d / 2 - 1)) & 0x0f) || this.regionId(x,y) == 255;
+    const reg = this.regionId(x,y);
+    if(reg == 1) return false;
+    return reg == 255 || this.checkPassage(x, y, (1 << (d / 2 - 1)) & 0x0f);
 };
 
 Game_Map.prototype.isBoatPassable = function(x, y) {

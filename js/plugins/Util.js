@@ -75,7 +75,7 @@ var Util = Util || {};
     Util.TextSounds = {
         miyamoto: {
           name    : ['text_mi', 'text_ya', 'text_mo', 'text_to'],
-          vol     : 200,
+          vol     : 250,
           pitch   : 100,
           pitchVar: 10,
           interval: 3,
@@ -91,6 +91,13 @@ var Util = Util || {};
             name    : 'text_beep',
             vol     : 100,
             pitch   : 150,
+            pitchVar: 20,
+            interval: 2,
+        },
+        sign: {
+            name    : 'text_beep',
+            vol     : 100,
+            pitch   : 50,
             pitchVar: 20,
             interval: 2,
         }
@@ -111,8 +118,14 @@ var Util = Util || {};
         $gameSystem.setWindowskin("Window_NPC");
     }
 
+    Game_Interpreter.prototype.SetSignTalk = function() {
+        Util.SetTextSound("sign");
+        $gameSystem.setWindowskin("Window_Sign");
+    }
+
     Game_Interpreter.prototype.FlyPlayer = function(g = -0.35) {
         const event = SceneManager._scene._playerEvent;
+        event.hasUsedDoubleJump = false;
         event.gravity = g; 
     }
 
@@ -155,6 +168,7 @@ var Util = Util || {};
     Game_Interpreter.prototype.StartSideScrollerScene = function() {
         const event = $gameMap._events[this._eventId];
         SceneManager._scene._playerEvent = event;
+        $gamePlayer._invincible = false;
         event.gravity = 0.2;
         event.grounded = true;
         event.animeTimer = 0;
@@ -188,14 +202,14 @@ var Util = Util || {};
 
     Game_Interpreter.prototype.PrepareSideScrollTransfer = function() {
         this.setWaitMode('transfer');
-        $gameSelfSwitches.setValue([$gameMap._mapId, this._eventId, 'A'], false);
-        $gameSelfSwitches.setValue([$gameMap._mapId, this._eventId, 'B'], false);
-        $gameSelfSwitches.setValue([$gameMap._mapId, this._eventId, 'C'], false);
-        $gameSelfSwitches.setValue([$gameMap._mapId, this._eventId, 'D'], false);
-        $gamePlayer._invincible = false;
-
         const event = SceneManager._scene._playerEvent;
         if(!event) return; // should never happen 
+    
+        $gameSelfSwitches.setValue([$gameMap._mapId, event._eventId, 'A'], false);
+        $gameSelfSwitches.setValue([$gameMap._mapId, event._eventId, 'B'], false);
+        $gameSelfSwitches.setValue([$gameMap._mapId, event._eventId, 'C'], false);
+        $gameSelfSwitches.setValue([$gameMap._mapId, event._eventId, 'D'], false);
+
         stopDash(event);
         stopGrapple(event);
         event.hasUsedDoubleJump = false;
@@ -208,7 +222,7 @@ var Util = Util || {};
         return $gameSwitches.value(1);
     }
     const dashEnabled = function() {
-        return true || $gameSwitches.value(2);
+        return $gameSwitches.value(2);
     }
     const grappleEnabled = function() {
         return $gameSwitches.value(3);
@@ -238,6 +252,9 @@ var Util = Util || {};
         if(SceneManager._scene._pauseForMessage && SceneManager._scene._messageWindow && (SceneManager._scene._messageWindow.isOpen() || SceneManager._scene._messageWindow.isAnySubWindowActive())) return;
 
         const event = $gameMap._events[this._eventId];
+        if(!event.pSprite) {
+            return;
+        }
         const yoff = -0.5;
 
         if(Input.isTriggered("#r")) {
@@ -247,7 +264,7 @@ var Util = Util || {};
 
         // check for dashing
         if(dashEnabled() && canMove(event)) {
-            if(!event.grounded && Input.isTriggered("down")) {
+            if(event.framesSinceGrounded > 1 && Input.isTriggered("down")) {
                 //if(event.framesSinceDownPressed < 15) {
                     event.dashing = true;
                     event.gravity = 0.1;
@@ -375,6 +392,14 @@ var Util = Util || {};
             }
         }
 
+        if(SceneManager._scene.bottomMap && $gamePlayer._realY >= $gameMap.height() - 1&& event.gravity > 0) {
+            $gamePlayer.reserveTransfer(SceneManager._scene.bottomMap, $gamePlayer._x, 0, $gamePlayer._direction, 0);
+            this.PrepareSideScrollTransfer();
+        } else if(SceneManager._scene.topMap && $gamePlayer._realY <= 0.5 && event.gravity < 0) {
+            $gamePlayer.reserveTransfer(SceneManager._scene.topMap, $gamePlayer._x, "end", $gamePlayer._direction, 0);
+            this.PrepareSideScrollTransfer();
+        }
+
         let bonked = false;
         if((!$gameMap.isPassable(-Math.round(-$gamePlayer._x+0.5 - 0.1), Math.ceil($gamePlayer._y - 0.5), 8) ||
             !$gameMap.isPassable(-Math.round(-$gamePlayer._x+0.5 + 0.1), Math.ceil($gamePlayer._y - 0.5), 8)) || 
@@ -435,8 +460,8 @@ var Util = Util || {};
         if(event.gravity >= 0) {
             event.grounded = (!$gamePlayer.isMapPassable(-Math.round(-$gamePlayer._x+0.5 - 0.1), Math.floor($gamePlayer._y + yoff), 2) ||
                 !$gamePlayer.isMapPassable(-Math.round(-$gamePlayer._x+0.5 + 0.1), Math.floor($gamePlayer._y + yoff), 2)) && 
-                (!$gameMap.isPassable(-Math.round(-$gamePlayer._x+0.5 + 0.1), Math.floor($gamePlayer._y + (prevGround ? yoff : 1))) || 
-                !$gameMap.isPassable(-Math.round(-$gamePlayer._x+0.5 - 0.1), Math.floor($gamePlayer._y + (prevGround ? yoff : 1))));
+                (!$gameMap.isPassable(-Math.round(-$gamePlayer._x+0.5 + 0.1), Math.floor($gamePlayer._y + (prevGround ? yoff : 1)), 2) || 
+                !$gameMap.isPassable(-Math.round(-$gamePlayer._x+0.5 - 0.1), Math.floor($gamePlayer._y + (prevGround ? yoff : 1)), 2));
             if(event.grounded) {
                 if(event.framesSinceGrounded > 1) {
                     // add landing dust here
@@ -498,13 +523,5 @@ var Util = Util || {};
         // if($gamePlayer._y >= 22.5) {
         //     $gameSelfSwitches.setValue([$gameMap._mapId, event._eventId, 'B'], true);
         // }
-
-        if(SceneManager._scene.bottomMap && $gamePlayer._realY >= $gameMap.height() - 0.5) {
-            $gamePlayer.reserveTransfer(SceneManager._scene.bottomMap, $gamePlayer._x, 0, $gamePlayer._direction, 0);
-            this.PrepareSideScrollTransfer();
-        } else if(SceneManager._scene.topMap && $gamePlayer._realY <= -0.1) {
-            $gamePlayer.reserveTransfer(SceneManager._scene.topMap, $gamePlayer._x, "end", $gamePlayer._direction, 0);
-            this.PrepareSideScrollTransfer();
-        }
     }
 })(Util)
