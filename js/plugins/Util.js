@@ -129,6 +129,77 @@ var Util = Util || {};
         event.gravity = g; 
     }
 
+    const globalSaveNum = 1;
+    Util.Autosave = function () {
+        if(SceneManager._scene._timeSinceAutosave < 200) return;
+        SceneManager._scene._timeSinceAutosave = 0;
+        const event = SceneManager._scene._playerEvent;
+
+        let psprite = undefined;
+        let stuff = {};
+        let Aswitch = false;
+        if(event) {
+            psprite = event.pSprite
+            stuff.parallax1 = event.parallax1;
+            stuff.parallax2 = event.parallax2;
+            stuff.grappleHand= event.grappleHand;
+            stuff.grappleArms = event.grappleArms;
+            stuff.grappling = event.grappling;
+            stuff.grapplePoint = event.grapplePoint;
+            delete event.pSprite;
+            delete event.parallax1;
+            delete event.parallax2;
+            delete event.grappleHand;
+            delete event.grappleArms;
+            delete event.grappling;
+            delete event.grapplePoint;
+
+            Aswitch = $gameSelfSwitches.value([$gameMap._mapId, event._eventId, 'A']);
+            $gameSelfSwitches.setValue([$gameMap._mapId, event._eventId, 'A'], false);
+        }
+
+        $gameSystem.onBeforeSave();
+        if (DataManager.saveGameWithoutRescue(globalSaveNum)) {
+	        StorageManager.cleanBackup(globalSaveNum);
+        }
+
+        if(psprite) {
+            event.pSprite = psprite;
+            event.parallax1 = stuff.parallax1;
+            event.parallax2 = stuff.parallax2;
+            event.grappleHand = stuff.grappleHand;
+            event.grappleArms = stuff.grappleArms;
+            event.grappling = stuff.grappling;
+            event.grapplePoint = stuff.grapplePoint;
+            $gameSelfSwitches.setValue([$gameMap._mapId, event._eventId, 'A'], Aswitch);
+        }
+    };
+
+    Util.LoadGame = function() {
+        if (DataManager.loadGame(globalSaveNum)) {
+            SoundManager.playLoad();
+            SceneManager._scene.fadeOutAll();
+            
+            // May not be needed
+            if ($gameSystem.versionId() !== $dataSystem.versionId) {
+                $gamePlayer.reserveTransfer($gameMap.mapId(), $gamePlayer.x, $gamePlayer.y);
+                $gamePlayer.requestMapReload();
+            }
+
+            SceneManager.goto(Scene_Map);
+
+            $gameSystem.onAfterLoad();
+        } else {
+            // Display error?
+            SoundManager.playBuzzer();
+            SceneManager.goto(Scene_Map);
+        }
+    }
+
+    Util.SaveExists = function() {
+        return DataManager.isThisGameFile(globalSaveNum);
+    }
+
     Game_Interpreter.prototype.WaterPlayer = function() {
         const event = SceneManager._scene._playerEvent;
         event.gravity *= 0.66; 
@@ -149,12 +220,32 @@ var Util = Util || {};
         SceneManager._scene._startingPlayerX = $gamePlayer._x; SceneManager._scene._startingPlayerY = $gamePlayer._y;
         SceneManager._scene._startingDisplayX = $gameMap._displayX;
         SceneManager._scene._startingDisplayY = $gameMap._displayY;
+        Util.RespawnInfo = {
+            x: SceneManager._scene._startingPlayerX,
+            y: SceneManager._scene._startingPlayerY,
+            Dx: SceneManager._scene._startingDisplayX,
+            Dy: SceneManager._scene._startingDisplayY,
+            map: $gameMap._mapId,
+        }
+        Util.Autosave();
     }
+
+    Game_Interpreter.prototype.ReturnToSpawnPoint = function() {
+        const r = Util.RespawnInfo;
+        $gamePlayer.reserveTransfer(r.map, r.x, r.y, $gamePlayer._direction, 0);
+        this.PrepareSideScrollTransfer();
+    }
+    
 
     Game_Interpreter.prototype.KillPlayer = function() {
         if($gamePlayer._invincible) return;
-        stopGrapple(SceneManager._scene._playerEvent);
-        SceneManager._scene._playerEvent.gravity = 0;
+        const event = SceneManager._scene._playerEvent;
+        if(!event) return;
+        stopGrapple(event);
+        event.gravity = 0;
+        event.hasUsedDoubleJump = false;
+        event.hasUsedJump = false;
+        event.framesSinceGrounded = 0;
         $gameScreen.startFlash([255, 0, 0, 128], 8);
         AudioManager.playSe({ name: "Blow2", volume: 80, pitch: 50, pan: 0 });
 
@@ -201,6 +292,9 @@ var Util = Util || {};
     }
 
     Game_Interpreter.prototype.PrepareSideScrollTransfer = function() {
+        if($gameMap._interpreter._waitMode == "message") {
+            SceneManager._scene._messageWindow.terminateMessage();
+        }
         this.setWaitMode('transfer');
         const event = SceneManager._scene._playerEvent;
         if(!event) return; // should never happen 
@@ -228,7 +322,7 @@ var Util = Util || {};
         return $gameSwitches.value(3);
     }
     const blockEnabled = function() {
-        return true || $gameSwitches.value(4);
+        return $gameSwitches.value(4);
     }
     const stopDash = function(playerEvent) {
         playerEvent.pSprite.rotation = 0;
@@ -258,7 +352,7 @@ var Util = Util || {};
         const yoff = -0.5;
 
         if(Input.isTriggered("#r")) {
-            this.KillPlayer();
+            this.ReturnToSpawnPoint();
             return;
         }
 
@@ -371,10 +465,10 @@ var Util = Util || {};
             }
         }
 
-
+        const COYOTE_TIME = 8;
         if(canMove(event)) {
             // check for double jump
-            if(doubleJumpEnabled() && (event.hasUsedJump || event.framesSinceGrounded >= 5) && !event.hasUsedDoubleJump && (Input.isTriggered("ok") || Input.isTriggered("up"))) {
+            if(doubleJumpEnabled() && (event.hasUsedJump || event.framesSinceGrounded >= COYOTE_TIME) && !event.hasUsedDoubleJump && (Input.isTriggered("ok") || Input.isTriggered("up"))) {
                 event.hasUsedDoubleJump = true;
                 event.gravity = -0.20;
                 event.grounded = false;
@@ -383,7 +477,7 @@ var Util = Util || {};
             }
 
             // check for jump
-            if(!event.hasUsedJump && event.framesSinceGrounded < 5 && (Input.isTriggered("ok") || Input.isTriggered("up"))) {
+            if(!event.hasUsedJump && event.framesSinceGrounded < COYOTE_TIME && (Input.isTriggered("ok") || Input.isTriggered("up"))) {
                 event.hasUsedJump = true;
                 event.grounded = false;
                 event.pSprite.rotation = 0; event.pSprite.anchor.x = event.pSprite.anchor.y = 1;
@@ -495,27 +589,41 @@ var Util = Util || {};
             event.framesSinceGrounded++;
         }
         // scroll
+        let scrollSpeedX = 1;
         if($gamePlayer._x > $gameMap._displayX + 17 / 2 + 1 && $gameMap._displayX < $gameMap.width() - 17.1) {
-            $gameMap._displayX += 0.1;
-            $gameMap._parallaxX += 0.015;
-            event.parallax1.origin.x += 0.5;
-            event.parallax2.origin.x += 1;
+            if($gamePlayer._x > $gameMap._displayX + 17 / 2 + 4 && $gameMap._displayX < $gameMap.width() - 15.1) {
+                scrollSpeedX = 2;
+            }
+            $gameMap._displayX += 0.1*scrollSpeedX;
+            $gameMap._parallaxX += 0.015*scrollSpeedX;
+            event.parallax1.origin.x += 0.5*scrollSpeedX;
+            event.parallax2.origin.x += 1*scrollSpeedX;
         } else if($gamePlayer._x < $gameMap._displayX + 17 / 2 - 1 && $gameMap._displayX > 0.1) {
-            $gameMap._displayX -= 0.1;
-            $gameMap._parallaxX -= 0.015;
-            event.parallax1.origin.x -= 0.5;
-            event.parallax2.origin.x -= 1;
+            if($gamePlayer._x < $gameMap._displayX + 17 / 2 - 4 && $gameMap._displayX > 2.1) {
+                scrollSpeedX = 2;
+            }
+            $gameMap._displayX -= 0.1*scrollSpeedX;
+            $gameMap._parallaxX -= 0.015*scrollSpeedX;
+            event.parallax1.origin.x -= 0.5*scrollSpeedX;
+            event.parallax2.origin.x -= 1*scrollSpeedX;
         }
+        let scrollSpeedY = 1;
         if($gamePlayer._y > $gameMap._displayY + 13 / 2 + 3 && $gameMap._displayY < $gameMap.height() - (13.1)) {
-            $gameMap._displayY += 0.1;
-            $gameMap._parallaxY += 0.015;
-            event.parallax1.y -= 0.5;
-            event.parallax2.y -= 1;
+            if($gamePlayer._y > $gameMap._displayY + 13 / 2 + 5 && $gameMap._displayY < $gameMap.height() - (11.1)) {
+                scrollSpeedY = 2;
+            }
+            $gameMap._displayY += 0.1*scrollSpeedY;
+            $gameMap._parallaxY += 0.015*scrollSpeedY;
+            event.parallax1.y -= 0.5*scrollSpeedY;
+            event.parallax2.y -= 1*scrollSpeedY;
         } else if($gamePlayer._y < $gameMap._displayY + 13 / 2 + 1 && $gameMap._displayY > 0.1 ) {
-            $gameMap._displayY -= 0.1;
-            $gameMap._parallaxY -= 0.015;
-            event.parallax1.y += 0.5;
-            event.parallax2.y += 1;
+            if($gamePlayer._y < $gameMap._displayY + 13 / 2 - 3 && $gameMap._displayY > 2.1 ) {
+                scrollSpeedY = 2;
+            }
+            $gameMap._displayY -= 0.1*scrollSpeedY;
+            $gameMap._parallaxY -= 0.015*scrollSpeedY;
+            event.parallax1.y += 0.5 * scrollSpeedY;
+            event.parallax2.y += 1*scrollSpeedY;
         }
 
         Util.CheckEventTriggers();

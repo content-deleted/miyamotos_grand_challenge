@@ -99,6 +99,7 @@ Scene_Base.prototype.isReady = function() {
  */
 Scene_Base.prototype.start = function() {
     this._active = true;
+    this._timeSinceAutosave = 0;
 };
 
 /**
@@ -111,6 +112,9 @@ Scene_Base.prototype.start = function() {
 Scene_Base.prototype.update = function() {
     this.updateFade();
     this.updateChildren();
+
+    // for autosave
+    this._timeSinceAutosave++;
 };
 
 /**

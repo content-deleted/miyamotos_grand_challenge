@@ -3069,15 +3069,15 @@ Input.clear = function() {
  */
 Input.update = function() {
     this._pollGamepads();
-    if (this._currentState[this._latestButton]) {
-        this._pressedTime++;
-    } else {
-        this._latestButton = null;
-    }
+    this._latestButton = {};
+    let n = {};
+    // todo: faster
+    Object.entries(this._pressedTime).map(([k,v]) => n[k] = v + 1 )
+    this._pressedTime = n;
     for (var name in this._currentState) {
         if (this._currentState[name] && !this._previousState[name]) {
-            this._latestButton = name;
-            this._pressedTime = 0;
+            this._latestButton[name] = true;
+            this._pressedTime[name] = 0;
             this._date = Date.now();
         }
         this._previousState[name] = this._currentState[name];
@@ -3113,7 +3113,7 @@ Input.isTriggered = function(keyName) {
     if (this._isEscapeCompatible(keyName) && this.isTriggered('escape')) {
         return true;
     } else {
-        return this._latestButton === keyName && this._pressedTime === 0;
+        return this._latestButton[keyName] && this._pressedTime[keyName] === 0;
     }
 };
 
@@ -3129,9 +3129,9 @@ Input.isRepeated = function(keyName) {
     if (this._isEscapeCompatible(keyName) && this.isRepeated('escape')) {
         return true;
     } else {
-        return (this._latestButton === keyName &&
-                (this._pressedTime === 0 ||
-                 (this._pressedTime >= this.keyRepeatWait &&
+        return (this._latestButton[keyName] &&
+                (this._pressedTime[keyName] === 0 ||
+                 (this._pressedTime[keyName] >= this.keyRepeatWait &&
                   this._pressedTime % this.keyRepeatInterval === 0)));
     }
 };
@@ -3148,8 +3148,8 @@ Input.isLongPressed = function(keyName) {
     if (this._isEscapeCompatible(keyName) && this.isLongPressed('escape')) {
         return true;
     } else {
-        return (this._latestButton === keyName &&
-                this._pressedTime >= this.keyRepeatWait);
+        return (this._latestButton[keyName] &&
+            this._pressedTime[keyName] >= this.keyRepeatWait);
     }
 };
 
@@ -3264,7 +3264,8 @@ Input._onKeyDown = function(event) {
     var buttonName = this.keyMapper[event.keyCode];
     if (ResourceHandler.exists() && buttonName === 'ok') {
         ResourceHandler.retry();
-    } else if (buttonName) {
+    } 
+    if (buttonName) {
         this._currentState[buttonName] = true;
     }
 };
@@ -3280,10 +3281,10 @@ Input._shouldPreventDefault = function(keyCode) {
     case 8:     // backspace
     case 33:    // pageup
     case 34:    // pagedown
-    case 37:    // left arrow
-    case 38:    // up arrow
-    case 39:    // right arrow
-    case 40:    // down arrow
+    // case 37:    // left arrow
+    // case 38:    // up arrow
+    // case 39:    // right arrow
+    // case 40:    // down arrow
         return true;
     }
     return false;
@@ -3305,9 +3306,9 @@ Input._onKeyUp = function(event) {
     if (buttonName) {
         this._currentState[buttonName] = false;
     }
-    if (event.keyCode === 0) {  // For QtWebEngine on OS X
-        this.clear();
-    }
+    // if (event.keyCode === 0) {  // For QtWebEngine on OS X
+    //     this.clear();
+    // }
 };
 
 /**
@@ -8966,7 +8967,7 @@ JsonEx._generateId = function(){
 JsonEx.stringify = function(object) {
     var circular = [];
     JsonEx._id = 1;
-    var json = JSON.stringify(this._encode(object, circular, 0));
+    var json = JSON.stringify(this._encode(object, circular, 0, ""));
     this._cleanMetadata(object);
     this._restoreCircularReference(circular);
 
@@ -9049,7 +9050,7 @@ JsonEx.makeDeepCopy = function(object) {
  * @return {Object}
  * @private
  */
-JsonEx._encode = function(value, circular, depth) {
+JsonEx._encode = function(value, circular, depth, test) {
     depth = depth || 0;
     if (++depth >= this.maxDepth) {
         throw new Error('Object too deep');
@@ -9058,7 +9059,16 @@ JsonEx._encode = function(value, circular, depth) {
     if (type === '[object Object]' || type === '[object Array]') {
         value['@c'] = JsonEx._generateId();
 
-        var constructorName = this._getConstructorName(value);
+        var constructorName;
+        try {
+            constructorName = this._getConstructorName(value);
+        } catch (error) {
+            console.log(test);
+            console.log(error);
+            console.log(value);
+            console.log(type);
+            return undefined;
+        }
         if (constructorName !== 'Object' && constructorName !== 'Array') {
             value['@'] = constructorName;
         }
@@ -9069,7 +9079,7 @@ JsonEx._encode = function(value, circular, depth) {
                         circular.push([key, value, value[key]]);
                         value[key] = {'@r': value[key]['@c']};
                     }else{
-                        value[key] = this._encode(value[key], circular, depth + 1);
+                        value[key] = this._encode(value[key], circular, depth + 1, test + constructorName + ".");
 
                         if(value[key] instanceof Array){
                             //wrap array
@@ -9082,7 +9092,7 @@ JsonEx._encode = function(value, circular, depth) {
                         }
                     }
                 }else{
-                    value[key] = this._encode(value[key], circular, depth + 1);
+                    value[key] = this._encode(value[key], circular, depth + 1, test + constructorName + ".");
                 }
             }
         }
