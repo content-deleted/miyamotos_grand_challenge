@@ -131,7 +131,7 @@ var Util = Util || {};
 
     const globalSaveNum = 1;
     Util.Autosave = function () {
-        if(SceneManager._scene._timeSinceAutosave < 200) return;
+        if(SceneManager._scene._timeSinceAutosave < 500) return;
         SceneManager._scene._timeSinceAutosave = 0;
         const event = SceneManager._scene._playerEvent;
 
