@@ -125,6 +125,7 @@ var Util = Util || {};
 
     Game_Interpreter.prototype.FlyPlayer = function(g = -0.35) {
         const event = SceneManager._scene._playerEvent;
+        if(!event) return;
         event.hasUsedDoubleJump = false;
         event.gravity = g; 
     }
@@ -202,6 +203,7 @@ var Util = Util || {};
 
     Game_Interpreter.prototype.WaterPlayer = function() {
         const event = SceneManager._scene._playerEvent;
+        if(!event) return;
         event.gravity *= 0.66; 
         event.hasUsedDoubleJump = false;
         event.hasUsedJump = false;
@@ -210,6 +212,7 @@ var Util = Util || {};
 
     Game_Interpreter.prototype.FuckupJump = function() {
         const event = SceneManager._scene._playerEvent;
+        if(!event) return;
         event.gravity = 0; 
         event.hasUsedDoubleJump = true;
         event.hasUsedJump = true;
@@ -292,7 +295,7 @@ var Util = Util || {};
     }
 
     Game_Interpreter.prototype.PrepareSideScrollTransfer = function() {
-        if($gameMap._interpreter._waitMode == "message") {
+        if($gameMessage.isBusy()) {
             SceneManager._scene._messageWindow.terminateMessage();
         }
         this.setWaitMode('transfer');
@@ -541,7 +544,7 @@ var Util = Util || {};
                 $gamePlayer._x = $gamePlayer._realX;
                 $gamePlayer._direction = 6;
                 isMoved = true;
-                if(SceneManager._scene.rightMap && $gamePlayer._realX >= $gameMap.width() - 1.1) {
+                if(SceneManager._scene.rightMap && $gamePlayer._realX >= $gameMap.width() - 0.1) {
                     // $gameSelfSwitches.setValue([$gameMap._mapId, event._eventId, 'D'], true);
                     const eventY = event.grounded ? $gamePlayer._realY  : $gamePlayer._realY;
                     $gamePlayer.reserveTransfer(SceneManager._scene.rightMap, 0, eventY, $gamePlayer._direction, 0);
